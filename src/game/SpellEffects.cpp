@@ -368,25 +368,6 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                             damage = m_caster->GetMaxPower(POWER_MANA);
                         break;
                     }
-                    // Polarity Shift Charges
-                    case 28062:                             // Positive Charge (Thaddius)
-                    case 28085:                             // Negative Charge (Thaddius)
-                    case 39090:                             // Positive Charge (Capacitus)
-                    case 39093:                             // Negative Charge (Capacitus)
-                    {
-                        uint32 uiAuraId = 0;
-                        switch (m_spellInfo->Id)
-                        {
-                            case 28062: uiAuraId = 28059; break;
-                            case 28085: uiAuraId = 28084; break;
-                            case 39090: uiAuraId = 39088; break;
-                            case 39093: uiAuraId = 39091; break;
-                        }
-                        // Do not damage non-players or players with same aura
-                        if (unitTarget->GetTypeId() != TYPEID_PLAYER || unitTarget->HasAura(uiAuraId))
-                            damage = 0;
-                        break;
-                    }
                     // percent max target health
                     case 29142:                             // Eyesore Blaster
                     case 35139:                             // Throw Boom's Doom
@@ -394,6 +375,33 @@ void Spell::EffectSchoolDMG(SpellEffectIndex effect_idx)
                     case 55269:                             // Deathly Stare
                     {
                         damage = damage * unitTarget->GetMaxHealth() / 100;
+                        break;
+                    }
+                    // Thaddius' charges, don't deal dmg to units with the same charge but give them the buff:
+                    // Positive Charge
+                    case 28062:
+                    {
+                        // If target is not (+) charged, then just deal dmg
+                        if (!unitTarget->HasAura(28059))
+                            break;
+
+                        if (m_caster != unitTarget)
+                            m_caster->CastSpell(m_caster, 29659, true);
+
+                        damage = 0;
+                        break;
+                    }
+                    // Negative Charge
+                    case 28085:
+                    {
+                        // If target is not (-) charged, then just deal dmg
+                        if (!unitTarget->HasAura(28084))
+                            break;
+
+                        if (m_caster != unitTarget)
+                            m_caster->CastSpell(m_caster, 29660, true);
+
+                        damage = 0;
                         break;
                     }
                     // Cataclysmic Bolt
@@ -1353,59 +1361,6 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                     m_caster->CastSpell(m_caster, 23782, true);
                     m_caster->CastSpell(m_caster, 23783, true);
                     return;
-                case 28089:                                 // Polarity Shift (Thaddius)
-                case 39096:                                 // Polarity Shift (Mechano-Lord Capacitus)
-                {
-                    uint32 uiPositiveDummyAura = 0;
-                    uint32 uiNegativeDummyAura = 0;
-                    // First, we remove auras from previous casts, reapplying new auras on last-target
-                    if (m_spellInfo->Id == 28089)
-                    {
-                        unitTarget->RemoveAurasDueToSpell(28059);
-                        unitTarget->RemoveAurasDueToSpell(29659);
-                        unitTarget->RemoveAurasDueToSpell(28084);
-                        unitTarget->RemoveAurasDueToSpell(29660);
-                        uiPositiveDummyAura = 28059;
-                        uiNegativeDummyAura = 28084;
-                    }
-                    else if (m_spellInfo->Id == 39096)
-                    {
-                        unitTarget->RemoveAurasDueToSpell(39088);
-                        unitTarget->RemoveAurasDueToSpell(39089);
-                        unitTarget->RemoveAurasDueToSpell(39091);
-                        unitTarget->RemoveAurasDueToSpell(39092);
-                        uiPositiveDummyAura = 39088;
-                        uiNegativeDummyAura = 39091;
-                    }
-                    if (m_UniqueTargetInfo.rbegin()->targetGUID != unitTarget->GetObjectGuid())
-                        return;
-                    // Keep Track of positive Charges
-                    uint32 maxPositiveTargets = m_UniqueTargetInfo.size() / 2;
-                    uint32 positiveChargedTargets = 0;
-                    uint32 negativeChargedTargets = 0;
-                    for (std::list<TargetInfo>::const_iterator itr = m_UniqueTargetInfo.begin(); itr != m_UniqueTargetInfo.end(); itr++)
-                    {
-                        // Skip Non-Players
-                        if (!itr->targetGUID.IsPlayer())
-                            continue;
-                        // The order of the targets is not entirely random, hence add some randomness with urand(0, 1)
-                        // apply positive, by random or if we have enough negative already
-                        if (Unit* pTarget = m_caster->GetMap()->GetUnit(itr->targetGUID))
-                        {
-                            if (positiveChargedTargets < maxPositiveTargets && (urand(0, 1) || negativeChargedTargets >= maxPositiveTargets))
-                            {
-                                pTarget->CastSpell(pTarget, uiPositiveDummyAura, true);
-                                positiveChargedTargets++;
-                            }
-                            else                            // apply negative
-                            {
-                                pTarget->CastSpell(pTarget, uiNegativeDummyAura, true);
-                                negativeChargedTargets++;
-                            }
-                        }
-                    }
-                    return;
-                }
                 case 24930:                                 // Hallow's End Treat
                 {
                     uint32 spell_id = 0;
@@ -1460,6 +1415,20 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                         m_caster->CastSpell(unitTarget, 29294, true);
 
                     return;
+                }
+                case 28089:                                 // Polarity Shift (Thaddius - Naxxramas)
+                {
+                    if (!unitTarget)
+                        return;
+
+                    // neutralize the target
+                    if (unitTarget->HasAura(28059)) unitTarget->RemoveAurasDueToSpell(28059);
+                    if (unitTarget->HasAura(29659)) unitTarget->RemoveAurasDueToSpell(29659);
+                    if (unitTarget->HasAura(28084)) unitTarget->RemoveAurasDueToSpell(28084);
+                    if (unitTarget->HasAura(29660)) unitTarget->RemoveAurasDueToSpell(29660);
+
+                    unitTarget->CastSpell(unitTarget, roll_chance_i(50) ? 28059 : 28084, true);
+                    break;
                 }
                 case 29200:                                 // Purify Helboar Meat
                 {
@@ -2262,14 +2231,6 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                     m_caster->CastSpell(unitTarget, 50770, true);
                     return;
                 }
-                case 51369:                                 // Tickbird Signal to Fall
-                {
-                    if (!unitTarget)
-                        return;
-
-                    unitTarget->DealDamage(unitTarget, unitTarget->GetMaxHealth(), NULL, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, NULL, false);
-                    return;
-                }
                 case 51420:                                 // Digging for Treasure Ping
                 {
                     if (!unitTarget || unitTarget->GetTypeId() != TYPEID_UNIT)
@@ -2567,6 +2528,37 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                 {
                     // Cast Emerge summon
                     m_caster->CastSpell(m_caster, 54851, true);
+                    return;
+                }
+                case 54517:                                 // Magnetic Pull
+                {
+                    // Feugen casts on Stalagg
+                    if (m_caster->GetTypeId() != TYPEID_UNIT || unitTarget->GetTypeId() != TYPEID_UNIT)
+                        return;
+
+                    if (m_caster->GetEntry() == 15930 && unitTarget->GetEntry() == 15929)
+                    {
+                        Unit *pFeugenVictim = m_caster->getVictim();
+                        Unit *pStalaggVictim = unitTarget->getVictim();
+
+                        if (pFeugenVictim && pStalaggVictim)
+                        {
+                            pStalaggVictim->CastSpell(m_caster, 54485, true);
+                            pFeugenVictim->CastSpell(unitTarget, 54485, true);
+
+                            // threat swap
+                            m_caster->AddThreat(pStalaggVictim, m_caster->getThreatManager().getThreat(pFeugenVictim));
+                            unitTarget->AddThreat(pFeugenVictim, m_caster->getThreatManager().getThreat(pStalaggVictim));
+                            m_caster->getThreatManager().modifyThreatPercent(pFeugenVictim, -101);
+                            unitTarget->getThreatManager().modifyThreatPercent(pStalaggVictim, -101);
+
+                            // stop moving for a moment
+                            m_caster->GetMotionMaster()->Clear();
+                            m_caster->GetMotionMaster()->MoveIdle();
+                            unitTarget->GetMotionMaster()->Clear();
+                            unitTarget->GetMotionMaster()->MoveIdle();
+                        }
+                    }
                     return;
                 }
                 case 55004:                                 // Nitro Boosts
