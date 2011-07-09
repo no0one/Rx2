@@ -4405,7 +4405,6 @@ void Aura::HandleModPossessPet(bool apply, bool Real)
         else
         {
             pet->GetMotionMaster()->MoveFollow(caster, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
-            pet->AddSplineFlag(SPLINEFLAG_WALKMODE);
         }
     }
 }
@@ -10125,6 +10124,31 @@ void SpellAuraHolder::HandleSpellSpecificBoosts(bool apply)
                     spellId1 = 63311;
                 else
                     return;
+            }
+            // Shadow embrace (healing reduction part)
+            else if (m_spellProto->SpellFamilyFlags.test<CF_WARLOCK_SHADOW_EMBRACE>())
+            {
+                switch(GetId())
+                {
+                    case 32386:
+                        spellId1 = 60448;
+                        break;
+                    case 32388:
+                        spellId1 = 60465;
+                        break;
+                    case 32389:
+                        spellId1 = 60466;
+                        break;
+                    case 32390:
+                        spellId1 = 60467;
+                        break;
+                    case 32394:
+                        spellId1 = 60468;
+                        break;
+                    default:
+                        break;
+                }
+                break;
             }
             else
                 return;
