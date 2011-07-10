@@ -1072,6 +1072,11 @@ void Aura::HandleAddModifier(bool apply, bool Real)
             case 64823:                                     // Elune's Wrath (Balance druid t8 set
                 GetHolder()->SetAuraCharges(1);
                 break;
+            case 53257:                                     // Cobra strike 2 stack on apply (maximal value! not +2)
+                GetHolder()->SetStackAmount(2);
+                break;
+            default:
+                break;
         }
 
         m_spellmod = new SpellModifier(
@@ -10126,7 +10131,7 @@ void SpellAuraHolder::HandleSpellSpecificBoosts(bool apply)
                     return;
             }
             // Shadow embrace (healing reduction part)
-            else if (m_spellProto->SpellFamilyFlags.test<CF_WARLOCK_SHADOW_EMBRACE>())
+            else if (m_spellProto->SpellFamilyFlags.test<CF_WARLOCK_MISC_DEBUFFS>() && m_spellProto->SpellIconID == 2209)
             {
                 switch(GetId())
                 {
