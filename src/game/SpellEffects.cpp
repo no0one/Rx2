@@ -2564,12 +2564,13 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                 case 54092:                                 // Monster Slayer's Kit 
                 { 
                     uint32 spell_id = 0; 
-                    switch(irand(1,4)) 
+                    switch(urand(0,3)) 
                     { 
-                        case 1: spell_id = 51853; break; 
-                        case 2: spell_id = 54063; break; 
-                        case 3: spell_id = 54071; break; 
-                        case 4: spell_id = 54086; break; 
+                        case 0: spell_id = 51853; break; 
+                        case 1: spell_id = 54063; break; 
+                        case 2: spell_id = 54071; break; 
+                        case 3: spell_id = 54086; break; 
+                        default: return;                        
                     } 
                     m_caster->CastSpell(unitTarget,spell_id,true,NULL); 
                     return; 
@@ -2883,11 +2884,26 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                 }
                 case 51858: // Siphon of Acherus
                 {
-                    if (!unitTarget)
+                    if (!unitTarget || unitTarget->GetTypeId() != TYPEID_UNIT)
                     return;
 
-                    m_caster->RemoveAurasDueToSpell(52006);   // Remove Stealth from Eye of Acherus upon cast
-                    ((Creature*)unitTarget)->ForcedDespawn();
+                    static uint32 const spellCredit[4] =
+                    {
+                        51974,                              // Forge Credit
+                        51980,                              // Scarlet Hold Credit
+                        51977,                              // Town Hall Credit
+                        51982,                              // Chapel Credit
+                    };
+                    for (int i = 0; i < 4; ++i)
+                    {
+                        const SpellEntry *pSpell = sSpellStore.LookupEntry(spellCredit[i]);
+                        if (pSpell->EffectMiscValue[EFFECT_INDEX_0] == unitTarget->GetEntry())
+                        {
+                            m_caster->RemoveAurasDueToSpell(52006);   // Remove Stealth from Eye of Acherus upon cast
+                            m_caster->CastSpell(unitTarget, spellCredit[i], true);
+                            break;
+                        }
+                    }
                     return;
                 }
                 default:                                   // DBC encounters main check
@@ -8022,6 +8038,11 @@ void Spell::EffectScriptEffect(SpellEffectIndex eff_idx)
                         m_caster->CastSpell(m_caster, spellId, true);
 
                     break;
+                }
+                case 53110:									// Devour Humanoid
+                {
+                    unitTarget->CastSpell(m_caster, m_spellInfo->CalculateSimpleValue(eff_idx),true, NULL, NULL, m_caster->GetObjectGuid()); 
+                    return;
                 }
                 case 53242:                                 // Clear Gift of Tharonja
                 {

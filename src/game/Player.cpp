@@ -5772,9 +5772,6 @@ void Player::UpdateWeaponSkill (WeaponAttackType attType)
     if(pVictim && pVictim->IsCharmerOrOwnerPlayerOrPlayerItself())
         return;
 
-    if(pVictim && pVictim->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PVP_ATTACKABLE ))
-        return;
-
     if (IsInFeralForm())
         return;                                             // always maximized SKILL_FERAL_COMBAT in fact
 
@@ -17506,6 +17503,8 @@ void Player::_LoadGroup(QueryResult *result)
                 sLFGMgr.LoadLFDGroupPropertiesForPlayer(this);
         }
     }
+    if (!GetGroup())
+        sLFGMgr.RemoveMemberFromLFDGroup(NULL,GetObjectGuid());
 }
 
 void Player::_LoadBoundInstances(QueryResult *result)
@@ -19398,6 +19397,9 @@ bool Player::IsAffectedBySpellmod(SpellEntry const *spellInfo, SpellModifier *mo
 
 void Player::AddSpellMod(SpellModifier* mod, bool apply)
 {
+    if (!mod)
+        return;
+
     uint16 Opcode= (mod->type == SPELLMOD_FLAT) ? SMSG_SET_FLAT_SPELL_MODIFIER : SMSG_SET_PCT_SPELL_MODIFIER;
 
     for(int eff = 0; eff < 96; ++eff)
@@ -24140,7 +24142,7 @@ AreaLockStatus Player::GetAreaLockStatus(uint32 mapId, Difficulty difficulty)
 
 uint32 Player::GetEquipGearScore(bool withBags, bool withBank)
 {
-    if (m_cachedGS > 0)
+    if (withBags && withBank && m_cachedGS > 0)
         return m_cachedGS;
 
     GearScoreMap gearScore (MAX_INVTYPE);
@@ -24212,10 +24214,13 @@ uint32 Player::GetEquipGearScore(bool withBags, bool withBank)
     if (count)
     {
         DEBUG_LOG("Player: calculating gear score for %u. Result is %u",GetObjectGuid().GetCounter(), uint32( summ / count ));
-
-        m_cachedGS = uint32( summ / count );
-
-        return m_cachedGS;
+        if (withBags && withBank)
+        {
+            m_cachedGS = uint32( summ / count );
+            return m_cachedGS;
+        }
+        else
+            return uint32( summ / count );
     }
     else return 0;
 }
