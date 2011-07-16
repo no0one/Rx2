@@ -362,7 +362,7 @@ Spell::Spell( Unit* caster, SpellEntry const *info, bool triggered, ObjectGuid o
     for(int i = 0; i < MAX_EFFECT_INDEX; ++i)
         m_currentBasePoints[i] = m_spellInfo->CalculateSimpleValue(SpellEffectIndex(i));
 
-    m_spellState = SPELL_STATE_NULL;
+    m_spellState = SPELL_STATE_PREPARING;
 
     m_castPositionX = m_castPositionY = m_castPositionZ = 0;
     m_TriggerSpells.clear();
@@ -1100,7 +1100,37 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
         }
         // Add bonuses and fill damageInfo struct
         else
-            caster->CalculateSpellDamage(&damageInfo, m_damage, m_spellInfo, m_attackType);
+        {
+            // Chain Lightning - spell coeff bonus based on jump
+            float chainJumpCoeff = 1.0f;
+ 
+            if (m_caster->GetTypeId() == TYPEID_PLAYER)
+            {
+                for (uint8 i = 0; i < MAX_EFFECT_INDEX; i++)
+                {
+                    if (m_spellInfo->EffectChainTarget[SpellEffectIndex(i)])
+                    {
+                        uint8 chainTarget = 0;
+
+                        for(TargetList::const_iterator ihit = m_UniqueTargetInfo.begin(); ihit != m_UniqueTargetInfo.end(); ++ihit)
+                        {
+                            chainTarget++;
+                            if (ihit->targetGUID == unitTarget->GetObjectGuid() && ihit->effectMask & (1<<i))
+                            {
+                                if (chainTarget == 2)
+                                    chainJumpCoeff = 0.7f;
+                                else if (chainTarget == 3)
+                                    chainJumpCoeff = 0.49f;
+                                else if (chainTarget == 4) // with the glyph
+                                    chainJumpCoeff = 0.34f;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            caster->CalculateSpellDamage(&damageInfo, m_damage, m_spellInfo, m_attackType, chainJumpCoeff);
+        }
 
         unitTarget->CalculateAbsorbResistBlock(caster, &damageInfo, m_spellInfo);
 
@@ -1111,6 +1141,9 @@ void Spell::DoAllEffectOnTarget(TargetInfo *target)
 
         procEx = createProcExtendMask(&damageInfo, missInfo);
         procVictim |= PROC_FLAG_TAKEN_ANY_DAMAGE;
+
+        if (damageInfo.absorb)
+            procEx &= ~PROC_EX_DIRECT_DAMAGE;
 
         // Do triggers for unit (reflect triggers passed on hit phase for correct drop charge)
         if (m_canTrigger && missInfo != SPELL_MISS_REFLECT)
@@ -1622,53 +1655,54 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 case 804:                                   // Explode Bug
                 case 23138:                                 // Gate of Shazzrah
                 case 28560:                                 // Summon Blizzard
-                case 62488:                                 // Activate Construct (Ulduar - Ignis encounter)
-                case 63545:                                 // Icicle Hodir(trigger spell from 62227)
-                case 68950:                                 // Fear (ICC: Forge of Souls)
-                case 48278:                                 // Paralyze (Utgarde Pinnacle)
-                case 63018:                                 // Searing Light nonhero
-                case 65121:                                 // Searing Light hero
-                case 62016:                                 // Charge Orb (Thorim)
                 case 31347:                                 // Doom TODO: exclude top threat target from target selection
                 case 33711:                                 // Murmur's Touch
                 case 38794:                                 // Murmur's Touch (h)
-                case 55479:                                 // Forced Obedience (Naxxramas - Razovius encounter)
+                case 48278:                                 // Paralyze (Utgarde Pinnacle)
                 case 50988:                                 // Glare of the Tribunal (Halls of Stone)
+                case 55479:                                 // Forced Obedience (Naxxramas - Razovius encounter)
                 case 59870:                                 // Glare of the Tribunal (h) (Halls of Stone)
+                case 62016:                                 // Charge Orb (Thorim)
+                case 62488:                                 // Activate Construct (Ulduar - Ignis encounter)
+                case 63018:                                 // Searing Light nonhero
+                case 63024:                                 // Gravity Bomb (XT-002)
                 case 63387:                                 // Rapid Burst
-                case 64531:                                 // Rapid Burst (h)
-                case 61916:                                 // Lightning Whirl (10 man)
-                case 63482:                                 // Lightning Whirl (25 man)
-                case 64218:                                 // Overcharge
-                case 65301:                                 // Psychosis (Yogg-Saron)
+                case 63545:                                 // Icicle Hodir(trigger spell from 62227)
                 case 63795:                                 // Psychosis (Yogg-Saron)
+                case 64218:                                 // Overcharge
+                case 64234:                                 // Gravity Bomb (h) (XT-002)
+                case 64531:                                 // Rapid Burst (h)
+                case 65121:                                 // Searing Light hero
+                case 65301:                                 // Psychosis (Yogg-Saron)
+                case 65950:                                 // Touch of Light
+                case 66001:                                 // Touch of Darkness
                 case 66152:                                 // Bullet Foced Cast (Trial of the Crusader, ->
                 case 66153: 
-                case 66339:                                 // Summon Scarab (Trial of the Crusader, Anub'arak encounter)
                 case 66336:                                 // Mistress' Kiss (Trial of the Crusader, ->
+                case 66339:                                 // Summon Scarab (Trial of the Crusader, Anub'arak encounter)
                 case 67077:                                 // -> Lord Jaraxxus encounter, 10 and 10 heroic)
-                case 66001:                                 // Touch of Darkness
                 case 67281:
                 case 67282:
                 case 67283:
-                case 65950:                                 // Touch of Light
                 case 67296:
                 case 67297:
                 case 67298:
-                case 69140:                                 // Coldflame (Icecrown Citadel, Lord Marrowgar encounter)
-                case 73058:                                 // Blood Nova
-                case 72378:                                 // Blood Nova
+                case 68950:                                 // Fear (ICC: Forge of Souls)
                 case 69057:                                 // Bone Spike Graveyard (Icecrown Citadel, Lord Marrowgar encounter, 10N)
+                case 69140:                                 // Coldflame (Icecrown Citadel, Lord Marrowgar encounter)
+                case 72378:                                 // Blood Nova
                 case 72088:                                 // Bone Spike Graveyard (Icecrown Citadel, Lord Marrowgar encounter, 10H)
+                case 73058:                                 // Blood Nova
                 case 73142:                                 // Bone Spike Graveyard (during Bone Storm) (Icecrown Citadel, Lord Marrowgar encounter, 10N)
                 case 73144:                                 // Bone Spike Graveyard (during Bone Storm) (Icecrown Citadel, Lord Marrowgar encounter, 10H)
                     unMaxTargets = 1;
                     break;
                 case 28542:                                 // Life Drain
+                case 62476:                                 // Icicle (Hodir 10man)
                 case 66013:                                 // Penetrating Cold (10 man)
-                case 68509:                                 // Penetrating Cold (10 man heroic)
                 case 66332:                                 // Nerubian Burrower (Trial of the Crusader, ->
                 case 67755:                                 // -> Anub'arak encounter, 10 and 10 heroic)
+                case 68509:                                 // Penetrating Cold (10 man heroic)
                 case 69278:                                 // Gas spore - 10
                 case 71336:                                 // Pact of the Darkfallen
                 case 71390:                                 // Pact of the Darkfallen
@@ -1691,6 +1725,12 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 case 73145:                                 // Bone Spike Graveyard (during Bone Storm) (Icecrown Citadel, Lord Marrowgar encounter, 25H)
                     unMaxTargets = 3;
                     break;
+                case 61916:                                 // Lightning Whirl (Stormcaller Brundir - Ulduar)
+                    unMaxTargets = urand(2, 3);
+                    break;
+                case 63482:                                 // Lightning Whirl (h) (Stormcaller Brundir - Ulduar)
+                    unMaxTargets = urand(3, 6);
+                    break;
                 case 67756:                                 // Nerubian Burrower (Trial of the Crusader, ->
                 case 67757:                                 // -> Anub'arak encounter, 25 and 25 heroic)
                 case 71221:                                 // Gas spore - 25
@@ -1699,8 +1739,8 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 case 30843:                                 // Enfeeble TODO: exclude top threat target from target selection
                 case 42005:                                 // Bloodboil TODO: need to be 5 targets(players) furthest away from caster
                 case 55665:                                 // Life Drain (h)
-                case 64604:                                 // Nature Bomb Freya
                 case 58917:                                 // Consume Minions
+                case 64604:                                 // Nature Bomb Freya
                 case 67076:                                 // Mistress' Kiss (Trial of the Crusader, ->
                 case 67078:                                 // -> Lord Jaraxxus encounter, 25 and 25 heroic)
                 case 67700:                                 // Penetrating Cold (25 man)
@@ -2310,8 +2350,9 @@ void Spell::SetTargetMap(SpellEffectIndex effIndex, uint32 targetMode, UnitList&
                 default:
                     FillAreaTargets(targetUnitMap, radius, PUSH_DEST_CENTER, SPELL_TARGETS_AOE_DAMAGE);
 
-                    // Mind Sear, triggered
-                    if (m_spellInfo->IsFitToFamily<SPELLFAMILY_PRIEST, CF_PRIEST_MIND_SEAR1>())
+                    // Custom cases
+                    if (m_spellInfo->IsFitToFamily<SPELLFAMILY_PRIEST, CF_PRIEST_MIND_SEAR1>() || // Mind Sear, triggered
+                        m_spellInfo->IsFitToFamily<SPELLFAMILY_DRUID, CF_DRUID_STARFALL1>())    // Starfall, triggered
                         if (Unit* unitTarget = m_targets.getUnitTarget())
                             targetUnitMap.remove(unitTarget);
 
@@ -3361,6 +3402,8 @@ void Spell::cast(bool skipCheck)
                 AddTriggeredSpell(74610);                  // Fiery combustion
             else if (m_spellInfo->Id == 74799)
                 AddTriggeredSpell(74800);                  // Soul consumption
+            else if (m_spellInfo->Id == 61968)             // Flash Freeze (Hodir: Ulduar)
+                AddTriggeredSpell(62148);                  // visual effect
             break;
         }
         case SPELLFAMILY_MAGE:
@@ -3875,21 +3918,27 @@ void Spell::update(uint32 difftime)
 
 void Spell::finish(bool ok)
 {
-    if(!m_caster)
+    if (!m_caster)
         return;
 
-    if(m_spellState == SPELL_STATE_FINISHED)
+    if (m_spellState == SPELL_STATE_FINISHED)
         return;
+
+    // remove/restore spell mods before m_spellState update
+    if (Player* modOwner = m_caster->GetSpellModOwner())
+    {
+        if (ok || m_spellState != SPELL_STATE_PREPARING)    // fail after start channeling or throw to target not affect spell mods
+            modOwner->RemoveSpellMods(this);
+        else
+            modOwner->ResetSpellModsDueToCanceledSpell(this);
+    }
 
     m_spellState = SPELL_STATE_FINISHED;
 
-    // other code related only to successfully finished spells
-    if(!ok)
-        return;
 
-    // remove spell mods
-    if (m_caster->GetTypeId() == TYPEID_PLAYER)
-        ((Player*)m_caster)->RemoveSpellMods(this);
+    // other code related only to successfully finished spells
+    if (!ok)
+        return;
 
     // handle SPELL_AURA_ADD_TARGET_TRIGGER auras
     Unit::AuraList const& targetTriggers = m_caster->GetAurasByType(SPELL_AURA_ADD_TARGET_TRIGGER);
@@ -5679,7 +5728,13 @@ SpellCastResult Spell::CheckCast(bool strict)
             case SPELL_EFFECT_CHARGE:
             {
                 if (m_caster->hasUnitState(UNIT_STAT_ROOT) && !(m_spellInfo->Id == 3411 && m_caster->HasAura(57499)))
-                    return SPELL_FAILED_ROOTED;
+                {
+                    // Intervene with Warbringer talent
+                    if (m_spellInfo->Id == 3411 && m_caster->HasAura(57499))
+                        m_caster->RemoveAurasAtMechanicImmunity(IMMUNE_TO_ROOT_AND_SNARE_MASK, 0);
+                    else
+                        return SPELL_FAILED_ROOTED;
+                }
 
                 break;
             }
@@ -6112,6 +6167,13 @@ SpellCastResult Spell::CheckCast(bool strict)
             my_trade->SetSpell(m_spellInfo->Id, m_CastItem);
             return SPELL_FAILED_DONT_REPORT;
         }
+    }
+
+    // check LOS for ground targeted spells
+    if (!m_targets.getUnitTarget() && !m_targets.getGOTarget() && !m_targets.getItemTarget())
+    {
+        if (m_targets.m_destX && m_targets.m_destY && m_targets.m_destZ && !m_caster->IsWithinLOS(m_targets.m_destX, m_targets.m_destY, m_targets.m_destZ))
+            return SPELL_FAILED_LINE_OF_SIGHT;
     }
 
     // all ok
@@ -7890,6 +7952,30 @@ bool Spell::FillCustomTargetMap(SpellEffectIndex i, UnitList &targetUnitMap)
     // Resulting effect depends on spell that we want to cast
     switch (m_spellInfo->Id)
     {
+        case 28374: // Decimate - Gluth encounter
+        {
+            FillAreaTargets(targetUnitMap, radius, PUSH_DEST_CENTER, SPELL_TARGETS_ALL);
+            targetUnitMap.remove(m_caster);
+        }
+        case 43263: // Ghoul Taunt (Army of the Dead)
+        {           // exclude Player and WorldBoss targets
+            FillAreaTargets(targetUnitMap, radius, PUSH_DEST_CENTER, SPELL_TARGETS_AOE_DAMAGE);
+            for (UnitList::iterator itr = targetUnitMap.begin(); itr != targetUnitMap.end();)
+            {
+                Creature *pTmp = (Creature*)(*itr);
+                if ( ((*itr) && (*itr)->GetTypeId() == TYPEID_PLAYER) || (pTmp && pTmp->IsWorldBoss()) )
+                {
+                    targetUnitMap.erase(itr);
+                    targetUnitMap.sort();
+                    itr = targetUnitMap.begin();
+                    continue;
+                }
+                itr++;
+            }
+            if (!targetUnitMap.empty())
+                return true;
+            break;
+        }
         case 46584: // Raise Dead
         {
             Unit* pCorpseTarget = NULL;
@@ -8013,6 +8099,30 @@ bool Spell::FillCustomTargetMap(SpellEffectIndex i, UnitList &targetUnitMap)
                 targetUnitMap.remove(unitTarget);
             return true;
         }
+        case 50286: // Starfall - exclude stealthed targets
+        case 53196: // rank 2
+        case 53197: // rank 3
+        case 53198: // rank 4
+        {
+            FillAreaTargets(targetUnitMap, radius, PUSH_DEST_CENTER, SPELL_TARGETS_AOE_DAMAGE);
+            for (UnitList::iterator itr = targetUnitMap.begin(), next; itr != targetUnitMap.end(); itr = next)
+            {
+                next = itr;
+                ++next;
+
+                if (!(*itr)->isVisibleForOrDetect(m_caster, m_caster, false, false, false))
+                    targetUnitMap.erase(itr);
+            }
+            if (!targetUnitMap.empty())
+                return true;
+        }
+        case 57143: // Life Burst (Wyrmrest Skytalon) 
+        {
+            // hack - spell is AoE but implicitTargets dont match here :/
+            SetTargetMap(SpellEffectIndex(i), TARGET_ALL_FRIENDLY_UNITS_AROUND_CASTER, targetUnitMap);
+            targetUnitMap.push_back(m_caster);
+            break;
+        }
         case 57557: // Pyrobuffet (Sartharion encounter) - don't target Range Markered units
         {
             UnitList tempTargetUnitMap;
@@ -8039,6 +8149,24 @@ bool Spell::FillCustomTargetMap(SpellEffectIndex i, UnitList &targetUnitMap)
             SetTargetMap(SpellEffectIndex(i), TARGET_RANDOM_ENEMY_CHAIN_IN_AREA, targetUnitMap);
             break;
         }
+        case 61920: // Supercharge (Iron Council: Ulduar)
+        {
+            UnitList tempTargetUnitMap;
+            FillAreaTargets(tempTargetUnitMap, radius, PUSH_DEST_CENTER, SPELL_TARGETS_NOT_HOSTILE);
+
+            for (UnitList::iterator itr = tempTargetUnitMap.begin(),next; itr != tempTargetUnitMap.end(); itr++)
+            {
+                if ((*itr) &&
+                    ((*itr)->GetEntry() == 32867 || // Steelbreaker
+                    (*itr)->GetEntry() == 32927 ||  // Runemaster Molgeim
+                    (*itr)->GetEntry() == 32857)    // Stormcaller Brundir
+                    )
+                {
+                    targetUnitMap.push_back(*itr);
+                }
+            }
+            break;
+        }
         case 61999: // Raise ally
         {
             WorldObject* result = FindCorpseUsing <MaNGOS::RaiseAllyObjectCheck>  ();
@@ -8046,6 +8174,60 @@ bool Spell::FillCustomTargetMap(SpellEffectIndex i, UnitList &targetUnitMap)
                 targetUnitMap.push_back((Unit*)result);
             else
                 targetUnitMap.push_back((Unit*)m_caster);
+            break;
+        }
+        case 62166: // Stone Grip (Kologarn)
+        case 63342: // Focused Eyebeam Summon Trigger (Kologarn)
+        case 63981: // Stone Grip (Kologarn)
+        {
+            if (m_caster->getVictim())
+                targetUnitMap.push_back(m_caster->getVictim());
+            else
+            {
+                FillAreaTargets(targetUnitMap, radius, PUSH_DEST_CENTER, SPELL_TARGETS_AOE_DAMAGE);
+                targetUnitMap.sort(TargetDistanceOrderNear(m_caster));
+                targetUnitMap.resize(1);
+            }
+            if (!targetUnitMap.empty())
+                return true;
+            break;
+        }
+        case 62240: // Solar Flare (Freya's elder)
+        case 62920:
+        {
+            FillAreaTargets(targetUnitMap, radius, PUSH_DEST_CENTER, SPELL_TARGETS_AOE_DAMAGE);
+            targetUnitMap.resize(m_caster->GetSpellAuraHolder(62239) ? m_caster->GetSpellAuraHolder(62239)->GetStackAmount() : 1);
+
+            if (!targetUnitMap.empty())
+                return true;
+        }
+        case 62343: // Heat (remove all except active iron constructs)
+        {
+            UnitList tempTargetUnitMap;
+            FillAreaTargets(tempTargetUnitMap, radius, PUSH_DEST_CENTER, SPELL_TARGETS_ALL);
+
+            for (UnitList::iterator itr = tempTargetUnitMap.begin(),next; itr != tempTargetUnitMap.end(); itr++)
+            {
+                if ((*itr) && (*itr)->GetEntry() == 33121 &&
+                    !(*itr)->HasAura(62468) && !(*itr)->HasAura(62373) &&
+                    !(*itr)->HasAura(62382) && !(*itr)->HasAura(67114)
+                    )
+                {
+                    targetUnitMap.push_back(*itr);
+                }
+            }
+            break;
+        }
+        case 62488: // Activate Constructs (remove all except inactive constructs)
+        {
+            UnitList tempTargetUnitMap;
+            FillAreaTargets(tempTargetUnitMap, radius, PUSH_DEST_CENTER, SPELL_TARGETS_NOT_HOSTILE);
+
+            for (UnitList::iterator itr = tempTargetUnitMap.begin(),next; itr != tempTargetUnitMap.end(); itr++)
+            {
+                if ((*itr) && (*itr)->GetEntry() == 33121 && (*itr)->HasAura(62468)) // check for stun aura
+                    targetUnitMap.push_back(*itr);
+            }
             break;
         }
         case 63025:  // Gravity Bomb (XT-002 in Ulduar) - exclude caster from pull and double damage
@@ -8197,6 +8379,20 @@ bool Spell::FillCustomTargetMap(SpellEffectIndex i, UnitList &targetUnitMap)
             FillAreaTargets(targetUnitMap, radius, PUSH_DEST_CENTER, SPELL_TARGETS_FRIENDLY);
             targetUnitMap.remove(m_caster);
             break;
+        }
+        case 74960:                                     // Infrigidate
+        {
+            UnitList tempTargetUnitMap;
+            FillAreaTargets(tempTargetUnitMap, 20.0f, PUSH_SELF_CENTER, SPELL_TARGETS_FRIENDLY);
+            tempTargetUnitMap.remove(m_caster);
+            if (!tempTargetUnitMap.empty())
+            {
+                UnitList::iterator i = tempTargetUnitMap.begin();
+                advance(i, rand()% tempTargetUnitMap.size());
+                targetUnitMap.push_back(*i);
+                return true;
+            }
+            return false;
         }
         default:
             return false;

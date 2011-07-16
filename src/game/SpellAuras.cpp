@@ -1075,6 +1075,16 @@ void Aura::HandleAddModifier(bool apply, bool Real)
             case 53257:                                     // Cobra strike 2 stack on apply (maximal value! not +2)
                 GetHolder()->SetStackAmount(2);
                 break;
+            // Shamanism spell coeff
+            // divided by 3 chain lighning jumps
+            case 62097: // Shamanism rank1
+            case 62098: // Shamanism rank2
+            case 62099: // Shamanism rank3
+            case 62100: // Shamanism rank4
+            case 62101: // Shamanism rank5
+                // divide by 4 with additional target from Glyph of Chain Lightning
+                m_modifier.m_amount = (int32)(ceil(m_modifier.m_amount / (GetTarget()->HasAura(55449) ? 4.0f : 3.0f)));
+                break;
             default:
                 break;
         }
@@ -2166,6 +2176,32 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                         if (Unit* caster = GetCaster())
                             caster->CastSpell(caster, 13138, true, NULL, this);
                         return;
+                    case 28832: // Mark of Korth'azz
+                    case 28833: // Mark of Blaumeux
+                    case 28834: // Mark of Rivendare
+                    case 28835: // Mark of Zeliek
+                    {
+                         uint8 stacks = GetStackAmount();
+                         int32 damage = 0;
+
+                         if (stacks == 2)
+                            damage = 500;
+                         else if (stacks == 3)
+                            damage = 1500;
+                         else if (stacks == 4)
+                            damage = 4000;
+                         else if (stacks == 5)
+                            damage = 12500;
+                         else if (stacks > 5)
+                            damage = 20000 + 1000 * (stacks - 6);
+
+                         Unit *unitTarget = GetTarget();
+                         Unit* caster = GetCaster();
+
+                         if (caster && unitTarget)
+                             unitTarget->CastCustomSpell(unitTarget, 28836, &damage, NULL, NULL, true, NULL, this, caster->GetObjectGuid());
+                         return;
+                    }
                     case 31606:                             // Stormcrow Amulet
                     {
                         CreatureInfo const * cInfo = ObjectMgr::GetCreatureTemplate(17970);
@@ -2256,6 +2292,9 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     case 52921:                             // Arc Lightning (Halls of Lighning: Loken)
                         target->CastSpell(target, 52924, false);
                         return;
+                    case 54852:                             // Cosmetic - Stun (Permanent)
+                        target->addUnitState(UNIT_STAT_STUNNED);
+                        return;
                     case 55328:                                 // Stoneclaw Totem I
                         target->CastSpell(target, 5728, true);
                         return;
@@ -2286,6 +2325,13 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                     case 58591:                                 // Stoneclaw Totem X
                         target->CastSpell(target, 58585, true);
                         return;
+                    case 61187:                                 // Twilight Shift
+                        target->CastSpell(target, 61885, true);
+                        if (target->HasAura(57620))
+                            target->RemoveAurasDueToSpell(57620);
+                        if (target->HasAura(57874))
+                            target->RemoveAurasDueToSpell(57874);
+                        break;
                     case 54729:                             // Winged Steed of the Ebon Blade
                         Spell::SelectMountByAreaAndSkill(target, GetSpellProto(), 0, 0, 54726, 54727, 0);
                         return;
@@ -2528,7 +2574,12 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 break;
             }
             case SPELLFAMILY_MAGE:
+            {
+                // Fingers of Frost stacks set to max at apply
+                if (GetId() == 74396)
+                    GetHolder()->SetAuraCharges(GetSpellProto()->StackAmount);
                 break;
+            }
             case SPELLFAMILY_HUNTER:
             {
                 switch(GetId())
@@ -2932,6 +2983,9 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                 target->RemoveAurasDueToSpell(41106);
                 return;
             }
+            case 54852:                                     // Cosmetic - Stun (Permanent)
+                target->clearUnitState(UNIT_STAT_STUNNED);
+                return;
             case 56511:                                     // Towers of Certain Doom: Tower Bunny Smoke Flare Effect
             {
                 // Towers of Certain Doom: Skorn Cannonfire
@@ -7775,6 +7829,11 @@ void Aura::PeriodicTick()
             uint32 procEx = isCrit ? PROC_EX_CRITICAL_HIT : PROC_EX_NORMAL_HIT;
 
             pdamage = (pdamage <= absorb + resist) ? 0 : (pdamage - absorb - resist);
+
+            if (pdamage <= 0)
+                procEx &= ~PROC_EX_DIRECT_DAMAGE;
+            else
+                procEx |= PROC_EX_DIRECT_DAMAGE;
 
             uint32 overkill = pdamage > target->GetHealth() ? pdamage - target->GetHealth() : 0;
             SpellPeriodicAuraLogInfo pInfo(this, pdamage, overkill, absorb, resist, 0.0f, isCrit);
