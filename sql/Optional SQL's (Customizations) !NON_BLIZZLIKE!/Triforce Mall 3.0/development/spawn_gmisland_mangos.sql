@@ -1,4 +1,5 @@
-insert into `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `spawndist`, `currentwaypoint`, `curhealth`, `curmana`, `DeathState`, `MovementType`) VALUES ('500000','500000','1','1','1','0','0','16297.4','16244.0','24.8233','0.791318','25','0','0','1000000','250000','0','0'),
+insert into `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `modelid`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `spawndist`, `currentwaypoint`, `curhealth`, `curmana`, `DeathState`, `MovementType`) VALUES 
+('500000','500000','1','1','1','0','0','16297.4','16244.0','24.8233','0.791318','25','0','0','1000000','250000','0','0'),
 ('500001','500001','1','1','1','0','0','16221.7','16275.9','20.9251','1.27072','25','0','0','1000000','250000','0','0'),
 ('500002','500002','1','1','1','0','0','16269.2','16306','14.1796','6.1893','25','0','0','1000000','250000','0','0'),
 ('500003','500003','1','1','1','0','0','16269.0','16309.3','14.0666','6.1893','25','0','0','1000000','250000','0','0'),
