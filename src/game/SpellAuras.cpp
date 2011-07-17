@@ -2166,31 +2166,27 @@ void Aura::HandleAuraDummy(bool apply, bool Real)
                         if (Unit* caster = GetCaster())
                             caster->CastSpell(caster, 13138, true, NULL, this);
                         return;
-                    case 28832: // Mark of Korth'azz
-                    case 28833: // Mark of Blaumeux
-                    case 28834: // Mark of Rivendare
-                    case 28835: // Mark of Zeliek
+                    case 28832:                             // Mark of Korth'azz
+                    case 28833:                             // Mark of Blaumeux
+                    case 28834:                             // Mark of Rivendare
+                    case 28835:                             // Mark of Zeliek
                     {
-                         uint8 stacks = GetStackAmount();
-                         int32 damage = 0;
+                        uint32 stacks = GetStackAmount();
+                        int32 damage = 0;
+                        switch (stacks)
+                        {
+                            case 0:
+                            case 1: return;
+                            case 2: damage = 500;   break;
+                            case 3: damage = 1500;  break;
+                            case 4: damage = 4000;  break;
+                            case 5: damage = 12500; break;
+                            default: damage = 20000 + (1000 * (stacks - 6)); break;
+                        }
 
-                         if (stacks == 2)
-                            damage = 500;
-                         else if (stacks == 3)
-                            damage = 1500;
-                         else if (stacks == 4)
-                            damage = 4000;
-                         else if (stacks == 5)
-                            damage = 12500;
-                         else if (stacks > 5)
-                            damage = 20000 + 1000 * (stacks - 6);
-
-                         Unit *unitTarget = GetTarget();
-                         Unit* caster = GetCaster();
-
-                         if (caster && unitTarget)
-                             unitTarget->CastCustomSpell(unitTarget, 28836, &damage, NULL, NULL, true, NULL, this, caster->GetObjectGuid());
-                         return;
+                        if (Unit* caster = GetCaster())
+                            caster->CastCustomSpell(target, 28836, &damage, NULL, NULL, true, NULL, this, caster->GetObjectGuid());
+                        return;
                     }
                     case 31606:                             // Stormcrow Amulet
                     {
@@ -5402,23 +5398,7 @@ void Aura::HandleModMechanicImmunity(bool apply, bool /*Real*/)
     }
     // Heroic Fury (Intercept cooldown remove)
     else if (apply && GetSpellProto()->Id == 60970 && target->GetTypeId() == TYPEID_PLAYER)
-    {
         ((Player*)target)->RemoveSpellCooldown(20252, true);
-    }
-    // Potent Pheromones (Freya encounter)
-    else if (GetId() == 64321 || GetId() == 62619)
-    {
-        if (apply)
-            HandleAuraModPacifyAndSilence(false, true);
-        else
-        {
-            if (GetId() == 64321 && m_removeMode == AURA_REMOVE_BY_EXPIRE || GetId() == 62619)
-            {
-                if (GetTarget()->HasAura(62532, EFFECT_INDEX_0))
-                    HandleAuraModPacifyAndSilence(true, true);
-            }
-        }
-    }
 }
 
 void Aura::HandleModMechanicImmunityMask(bool apply, bool /*Real*/)
@@ -7358,13 +7338,6 @@ void Aura::HandleAuraModPacifyAndSilence(bool apply, bool Real)
 {
     HandleAuraModPacify(apply, Real);
     HandleAuraModSilence(apply, Real);
-
-    // Conservator's Grip (Freya)
-    if (GetId() == 62532)
-    {
-        if (GetTarget()->HasAura(64321, EFFECT_INDEX_0) || GetTarget()->HasAura(62619, EFFECT_INDEX_0))
-            return;
-    }
 }
 
 void Aura::HandleAuraGhost(bool apply, bool /*Real*/)
@@ -8703,18 +8676,24 @@ void Aura::PeriodicDummyTick()
                     if (target->GetTypeId() != TYPEID_PLAYER)
                         return;
 
-                    // aura stack increase every 3 (data in m_miscvalue) seconds and decrease every 1s
-                    SpellAuraHolder *holder = target->GetSpellAuraHolder(62039);
-                     // dmg dealing every second
-                    target->CastSpell(target, 62188, true);
+                    Unit * caster = GetCaster();
+                    if (!caster)
+                        return;
 
-                    // Reset reapply counter at move and decrease stack amount by 1
-                    if (((Player*)target)->isMoving())
+                    if (!target->HasAura(62821))     // Toasty Fire
                     {
-                        if (holder)
+                        // dmg dealing every second
+                        target->CastSpell(target, 62188, true, 0, 0, caster->GetObjectGuid());
+                    }
+
+                    // aura stack increase every 3 (data in m_miscvalue) seconds and decrease every 1s
+                    // Reset reapply counter at move and decrease stack amount by 1
+                    if (((Player*)target)->isMoving() || target->HasAura(62821))
+                    {
+                        if (SpellAuraHolder *holder = target->GetSpellAuraHolder(62039))
                         {
                             if (holder->ModStackAmount(-1))
-                                target->RemoveAurasDueToSpell(62039);
+                                target->RemoveSpellAuraHolder(holder);
                         }
                         m_modifier.m_miscvalue = 3;
                         return;
@@ -8727,7 +8706,6 @@ void Aura::PeriodicDummyTick()
                     }
 
                     target->CastSpell(target, 62039, true);
-                    target->CastSpell(target, 62188, true);
 
                     // recast every ~3 seconds
                     m_modifier.m_miscvalue = 3;
@@ -10098,6 +10076,14 @@ void SpellAuraHolder::HandleSpellSpecificBoosts(bool apply)
                     if (!apply)
                         if(Unit* caster = GetCaster())
                             caster->RemoveAurasDueToSpell(34027);
+                    return;
+                }
+                case 62619:                                 // Potent Pheromones (Freya encounter)
+                case 64321:                                 // Potent Pheromones (Freya encounter) heroic
+                {
+                    if (apply)
+                        if (Unit* target = GetTarget())
+                            target->RemoveAurasDueToSpell(62532);
                     return;
                 }
                 case 62692:                                 // Aura of Despair (General Vezax - Ulduar)

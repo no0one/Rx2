@@ -972,6 +972,15 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit *pVictim, uint32 damage, Aura
                     if (triggeredByAura->GetStackAmount() > 1 && !triggeredByAura->GetHolder()->ModStackAmount(-1))
                         return SPELL_AURA_PROC_CANT_TRIGGER;
                 }
+                // Petrified Bark
+                case 62337:
+                 {
+                     triggered_spell_id = 62379;
+                     basepoints[0] = damage;
+                    // this == pVictim, why? :/ temp. workaround
+                    target = SelectRandomUnfriendlyTarget(getVictim());
+                    break;
+                 }
                 // Glyph of Life Tap
                 case 63320:
                     triggered_spell_id = 63321;
@@ -2873,6 +2882,11 @@ SpellAuraProcResult Unit::HandleDummyAuraProc(Unit *pVictim, uint32 damage, Aura
                 if(!procSpell || GetTypeId() != TYPEID_PLAYER || !pVictim )
                     return SPELL_AURA_PROC_FAILED;
 
+                // proc for main target only
+                if (Spell *currSpell = GetCurrentSpell(CURRENT_GENERIC_SPELL))
+                    if (currSpell->m_targets.getUnitTarget() != pVictim)
+                        return SPELL_AURA_PROC_FAILED;
+
                 // custom cooldown processing case
                 if( cooldown && GetTypeId()==TYPEID_PLAYER && ((Player*)this)->HasSpellCooldown(dummySpell->Id))
                     return SPELL_AURA_PROC_FAILED;
@@ -3545,8 +3559,13 @@ SpellAuraProcResult Unit::HandleProcTriggerSpellAuraProc(Unit *pVictim, uint32 d
                     (((Creature*)pVictim)->GetCreatureInfo()->MechanicImmuneMask & (1 << (MECHANIC_STUN - 1))) == 0)
                     return SPELL_AURA_PROC_FAILED;
             }
+            // Missile Barrage
             else if (auraSpellInfo->SpellIconID == 3261)
             {
+                // proc chance for spells other than Arcane Blast is always 2 times lower, so we have to roll for 50% now
+                if(procSpell->SpellIconID != 2294 && !roll_chance_i(50))
+                    return SPELL_AURA_PROC_FAILED;
+
                 if (HasAura(44401) || HasAura(57761))
                     return SPELL_AURA_PROC_FAILED;
             }
