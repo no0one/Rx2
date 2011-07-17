@@ -1837,7 +1837,6 @@ SOAP.Port = 7878
 #                 1 - on
 #
 ###################################################################################################################
-
 Anticheat.Enable = 1
 Anticheat.DelayAfterAction = 30
 Anticheat.GmLevel = 0
@@ -1879,6 +1878,7 @@ CharDelete.KeepDays = 30
 #    Rate.RAF.LevelPerLevel  = 0.5 (bonus levels per referal level)
 #
 ###################################################################################################################
+
 RAF.MaxGrantLevel       = 60
 RAF.MaxReferals         = 5
 RAF.MaxReferers         = 5
@@ -1899,12 +1899,12 @@ Rate.RAF.LevelPerLevel  = 0.5
 #        enabling Raid finder extended operations (not blizzlike!)
 #    LFG.MaxKicks            = 5
 ###################################################################################################################
+
 LFR.Enable              = 1
-LFG.Enable              = 0
+LFG.Enable              = 1
 LFG.Debug               = 0
 LFR.Extend              = 0
 LFG.MaxKicks            = 5
-
 
 ###################################################################################################################
 #    PvP Token System
@@ -1943,12 +1943,12 @@ LFG.MaxKicks            = 5
 #
 ###################################################################################################################
 
-PvPToken.Enable = 1
+PvPToken.Enable = 0
 PvPToken.ItemID = 29434
 PvPToken.ItemCount = 1
-PvPToken.Gold = 100000
-PvPToken.Honor = 75000  
-PvPToken.Arena = 5000
+PvPToken.Gold = 0
+PvPToken.Honor = 0  
+PvPToken.Arena = 0
 PvPToken.MapRestriction = 4
 
 ###################################################################################################################
