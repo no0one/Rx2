@@ -2399,6 +2399,10 @@ class MANGOS_DLL_SPEC Player : public Unit
         // currently visible objects at player client
         ObjectGuidSet m_clientGUIDs;
 
+        // ChatSpy
+       void HandleChatSpyMessage(const std::string& msg, uint8 type, uint32 lang, Player* sender = NULL, std::string special = "");
+       ObjectGuid m_chatSpyGuid;
+
         bool HaveAtClient(WorldObject const* u) { return u==this || m_clientGUIDs.find(u->GetObjectGuid())!=m_clientGUIDs.end(); }
 
         bool IsVisibleInGridForPlayer(Player* pl) const;
