@@ -10006,7 +10006,7 @@ void Unit::CleanupsBeforeDelete()
         else
             getHostileRefManager().deleteReferences();
         RemoveAllAuras(AURA_REMOVE_BY_DELETE);
-        GetMotionMaster()->Clear(false,true);         // remove all movement generators.           
+        GetMotionMaster()->Clear(false,true);         // remove all movement generators.
     }
     WorldObject::CleanupsBeforeDelete();
 }
@@ -11890,9 +11890,9 @@ SpellAuraHolder* Unit::GetSpellAuraHolder (uint32 spellid, ObjectGuid casterGuid
     return NULL;
 }
 
-void Unit::RemoveUnitFromHostileRefManager(Unit* pUnit) 
-{ 
-    getHostileRefManager().deleteReference(pUnit); 
+void Unit::RemoveUnitFromHostileRefManager(Unit* pUnit)
+{
+    getHostileRefManager().deleteReference(pUnit);
 }
 
 void Unit::_AddAura(uint32 spellID, uint32 duration)
